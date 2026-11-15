@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Category {
+  GARBAGE
+  DRAIN
+  ROAD
+  TOILET
+  OPEN_DEFECATION
+  WATER_LOGGING
+  DEBRIS
+  OTHER
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum ImageType {
+  COMPLAINT
+  RESOLUTION
+}
+
+enum AuthorRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String?  @map("password_hash")
+  role         Role     @default(USER)
+  avatarUrl    String?  @map("avatar_url")
+  isActive     Boolean  @default(true) @map("is_active")
+  resetToken   String?  @map("reset_token")
+  resetExpires DateTime? @map("reset_expires")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  complaints   Complaint[]
+  comments     Comment[]
+  adminWards   AdminWard[]
+  statusChanges StatusHistory[]
+
+  @@map("users")
+}
+
+model Ward {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  city      String   @default("Bangalore")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  pincodes  WardPincode[]
+  admins    AdminWard[]
+  complaints Complaint[]
+
+  @@map("wards")
+}
+
+model WardPincode {
+  id      String @id @default(uuid())
+  wardId  String @map("ward_id")
+  pincode String @unique
+  ward    Ward   @relation(fields: [wardId], references: [id], onDelete: Cascade)
+
+  @@map("ward_pincodes")
+}
+
+model AdminWard {
+  id      String @id @default(uuid())
+  adminId String @map("admin_id")
+  wardId  String @map("ward_id")
+  admin   User   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  ward    Ward   @relation(fields: [wardId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, wardId])
+  @@map("admin_wards")
+}
+
+model Complaint {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  title       String
+  description String
+  category    Category
+  status      Status   @default(PENDING)
+  latitude    Float
+  longitude   Float
+  address     String?
+  pincode     String?
+  wardId      String?  @map("ward_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id])
+  ward        Ward?    @relation(fields: [wardId], references: [id])
+  images      ComplaintImage[]
+  comments    Comment[]
+  statusHistory StatusHistory[]
+
+  @@index([status])
+  @@index([wardId])
+  @@index([pincode])
+  @@index([category])
+  @@map("complaints")
+}
+
+model ComplaintImage {
+  id          String   @id @default(uuid())
+  complaintId String   @map("complaint_id")
+  imageUrl    String   @map("image_url")
+  type        ImageType @default(COMPLAINT)
+  sortOrder   Int      @default(0) @map("sort_order")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@map("complaint_images")
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  complaintId String    @map("complaint_id")
+  authorId    String    @map("author_id")
+  content     String
+  authorRole  AuthorRole @map("author_role")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+model StatusHistory {
+  id          String   @id @default(uuid())
+  complaintId String   @map("complaint_id")
+  changedById String   @map("changed_by")
+  fromStatus  Status?  @map("from_status")
+  toStatus    Status   @map("to_status")
+  remarks     String?
+  changedAt   DateTime @default(now()) @map("changed_at")
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  changedBy   User      @relation(fields: [changedById], references: [id])
+
+  @@map("status_history")
+}
