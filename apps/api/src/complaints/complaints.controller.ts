@@ -43,7 +43,7 @@ export class ComplaintsController {
   @Post(':id/comments') addComment(@Request() req: any, @Param('id') id: string, @Body() dto: CreateCommentDto) {
     return this.svc.addComment(id, req.user, dto);
   }
-  @Get(':id/comments') comments(@Param('id') id: string) {
-    return this.svc.listComments(id);
+  @Get(':id/comments') comments(@Request() req: any, @Param('id') id: string) {
+    return this.svc.listComments(id, req.user);
   }
 }

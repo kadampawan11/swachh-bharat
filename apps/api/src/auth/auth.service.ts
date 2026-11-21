@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
@@ -6,6 +6,8 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 
 const MOCK_OTP = '123456';
+// Mock OTP and reset tokens in responses are for local testing only.
+const DEV_AUTH = process.env.NODE_ENV !== 'production';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +18,7 @@ export class AuthService {
     return safe;
   }
   private async tokens(user: { id: string; role: Role }) {
-    const accessToken = await this.jwt.signAsync({ sub: user.id, role: user.role });
+    const accessToken = await this.jwt.signAsync({ sub: user.id, role: user.role, type: 'access' });
     const refreshToken = await this.jwt.signAsync(
       { sub: user.id, type: 'refresh' },
       { expiresIn: '30d' },
@@ -57,10 +59,12 @@ export class AuthService {
 
   async otpSend(phone: string) {
     // Mock OTP for local dev — always 123456. Swap to Firebase Phone Auth later.
+    if (!DEV_AUTH) throw new ServiceUnavailableException('Phone OTP login is not configured');
     return { sent: true, phone, mockOtp: MOCK_OTP };
   }
 
   async otpVerify(dto: { phone: string; otp: string; name?: string }) {
+    if (!DEV_AUTH) throw new ServiceUnavailableException('Phone OTP login is not configured');
     if (dto.otp !== MOCK_OTP) throw new UnauthorizedException('Invalid OTP');
     let user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     if (!user) {
@@ -79,8 +83,8 @@ export class AuthService {
       where: { id: user.id },
       data: { resetToken: token, resetExpires: new Date(Date.now() + 3600_000) },
     });
-    // In dev, return the token directly (no mailer). In prod, email a reset link.
-    return { sent: true, devResetToken: token };
+    // No mailer yet: the token is only returned in dev mode. In prod, email a reset link.
+    return DEV_AUTH ? { sent: true, devResetToken: token } : { sent: true };
   }
 
   async resetPassword(dto: { token: string; password: string }) {

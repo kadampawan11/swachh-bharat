@@ -52,8 +52,10 @@ export class AdminsController {
 
   @Patch(':id/wards')
   async assignWards(@Param('id') id: string, @Body() dto: AssignWardsDto) {
-    await this.prisma.adminWard.deleteMany({ where: { adminId: id } });
-    await this.prisma.adminWard.createMany({ data: dto.wardIds.map((wardId) => ({ adminId: id, wardId })) });
+    await this.prisma.$transaction([
+      this.prisma.adminWard.deleteMany({ where: { adminId: id } }),
+      this.prisma.adminWard.createMany({ data: dto.wardIds.map((wardId) => ({ adminId: id, wardId })) }),
+    ]);
     return this.prisma.user.findUnique({ where: { id }, select: { id: true, adminWards: { include: { ward: true } } } });
   }
 

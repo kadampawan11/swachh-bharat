@@ -189,7 +189,10 @@ export class ComplaintsService {
     });
   }
 
-  async listComments(complaintId: string) {
+  async listComments(complaintId: string, user: { id: string; role: Role }) {
+    const c = await this.prisma.complaint.findUnique({ where: { id: complaintId } });
+    if (!c) throw new NotFoundException();
+    if (user.role === Role.USER && c.userId !== user.id) throw new ForbiddenException();
     return this.prisma.comment.findMany({
       where: { complaintId },
       include: { author: { select: { id: true, name: true } } },

@@ -29,6 +29,8 @@ pnpm --filter mobile start             # Expo dev server
 | Citizen | citizen@example.com | user123 |
 | Phone OTP | any phone | OTP: **123456** |
 
+> The mock OTP and the reset token returned by `forgot-password` are disabled when `NODE_ENV=production`. Set `JWT_SECRET` there too; the API won't start without it.
+
 ## Key endpoints
 - `POST /api/auth/{register,login,admin/login,otp/send,otp/verify,forgot-password,reset-password,refresh}`
 - `GET/POST/PATCH/DELETE /api/complaints`, `GET /api/complaints/geo`, `PATCH /:id/status`, `POST /:id/reopen`, `/:id/comments`
